@@ -29,8 +29,9 @@ input,select,textarea{font:inherit;color:var(--ink)}
 @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
 /* ---------- HERO: living sky ---------- */
-.hero{position:relative;height:min(78vh,620px);min-height:470px;overflow:hidden;border-radius:0 0 34px 34px;background:linear-gradient(180deg,var(--sky1),var(--sky2));transition:background 1s}
+.hero{position:relative;height:min(56vh,460px);min-height:380px;overflow:hidden;border-radius:0;background:linear-gradient(180deg,var(--sky1),var(--sky2));transition:background 1s}
 .hero svg.scene{position:absolute;inset:auto 0 0 0;width:100%;height:62%}
+.hero .edge{position:absolute;left:0;right:0;bottom:-1px;width:100%;height:46px;z-index:2;display:block}
 .heroimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;display:none}
 .hero.photo .heroimg{display:block}
 .hero.photo:after{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(10,16,80,.55) 0%,rgba(10,16,80,.15) 45%,rgba(10,16,80,.35) 100%)}
@@ -44,9 +45,9 @@ input,select,textarea{font:inherit;color:var(--ink)}
 .logo img{width:38px;height:38px;border-radius:50%;object-fit:contain;background:#fff}
 .flogo{display:inline-block;margin-bottom:10px}.flogo img{width:170px;display:block}
 .clock{font-family:'Space Mono';font-size:12px;background:rgba(11,34,56,.35);backdrop-filter:blur(6px);padding:6px 10px;border-radius:99px}
-.hero .copy{position:relative;z-index:3;padding:26px 20px 0;color:#fff;max-width:520px}
+.hero .copy{position:relative;z-index:3;padding:18px 20px 0;color:#fff;max-width:520px}
 .hero .copy .phase{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.2);backdrop-filter:blur(6px);padding:6px 12px;border-radius:99px;margin-bottom:14px}
-.hero h1{font-size:clamp(38px,11vw,58px);font-weight:800;text-shadow:0 2px 20px rgba(0,0,0,.18)}
+.hero h1{font-size:clamp(34px,9.6vw,54px);font-weight:800;text-shadow:0 2px 20px rgba(0,0,0,.18)}
 .hero h1 em{font-family:'Caveat';font-style:normal;font-weight:700;color:var(--mango);font-size:1.12em}
 .hero p.sub{margin-top:10px;opacity:.95;font-size:15.5px;max-width:330px;text-shadow:0 1px 8px rgba(0,0,0,.25)}
 .stars circle{fill:#fff;animation:tw 3s infinite alternate}
@@ -441,8 +442,8 @@ input,select,textarea{font:inherit;color:var(--ink)}
         <g class="surfer"><ellipse cx="62" cy="14" rx="15" ry="3" fill="var(--mango)"/><path d="M60 13 l2 -10 l-6 -4 M62 3 l5 4 M62 3 l-1 -3" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="61" cy="-2" r="2.6" fill="var(--ink)"/></g>
       </g>
       <path class="wave1" d="M-40 215 q25 -10 50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 v60 h-520z" fill="var(--sea2)" opacity=".7"/>
-      <path d="M0 240 Q200 226 400 240 V260 H0Z" fill="var(--sand)"/>
     </svg>
+    <svg class="edge" viewBox="0 0 400 46" preserveAspectRatio="none" aria-hidden="true"><path d="M0 22 C70 4 140 4 200 16 C265 29 330 30 400 12 V46 H0Z" fill="var(--sand)"/></svg>
   </div>
 
   <div class="quick">
