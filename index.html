@@ -630,6 +630,7 @@ const DEFAULTS = {
   currency:"USD",
   tgst:17, greenTax:6, deposit:30,
   hero:"",
+  mail:{on:false,publicKey:"",serviceId:"",hostTemplate:"",guestTemplate:"",hostEmail:""},
   allowArrival:true, allowBank:true, allowCard:true, allowPaypal:true,
   paypal:"",
   bank:{ bank:"Bank of Maldives", holder:"Aria Holiday", account:"", note:"Use your booking code as the reference." },
@@ -716,7 +717,7 @@ function waLink(num,text){return "https://wa.me/"+String(num).replace(/\D/g,"")+
 const P=CONFIG.PREFIX;
 const useFB=!!CONFIG.FIREBASE.apiKey;
 let db=null,auth=null;
-function mergeSettings(saved){const s=clone(DEFAULTS);if(!saved)return s;for(const k in saved){if(k==="bank")s.bank={...s.bank,...saved.bank};else if(k==="pkg")s.pkg={...s.pkg,...saved.pkg};else s[k]=saved[k]}return s}
+function mergeSettings(saved){const s=clone(DEFAULTS);if(!saved)return s;for(const k in saved){if(k==="bank")s.bank={...s.bank,...saved.bank};else if(k==="pkg")s.pkg={...s.pkg,...saved.pkg};else if(k==="mail")s.mail={...s.mail,...saved.mail};else s[k]=saved[k]}return s}
 const Store={
   async init(){
     if(!useFB)return;
@@ -1161,10 +1162,43 @@ async function submitBooking(){
       price:{room:q.room,meals:q.meals,exps:q.exps,transfer:q.transfer,tgst:q.tgst,green:q.green,total:q.total,due:q.due},
       paymentStatus:bk.pay==="arrival"?"unpaid":(bk.slip?"review":"unpaid"),paidAmount:0,slip:bk.slip||""};
     await Store.add(b);
+    sendBookingEmails(b);
     try{LS.set(P+"last",{code:b.code,email:b.email})}catch(e){}
     if(b.pay==="card")return startCardPayment(b);
     showDone(b);
   }catch(e){console.error(e);btn.disabled=false;btn.textContent=confirmLabel();$("#stepErr").textContent="Couldn't save your booking. Check your connection and try again."}
+}
+/* ---------- booking emails (EmailJS) ---------- */
+let ejsReady=null;
+function loadEmailJS(){if(!ejsReady)ejsReady=loadScript("https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js").then(()=>{emailjs.init({publicKey:S.mail.publicKey})});return ejsReady}
+function mailParams(b,to){
+  const ppl=b.adults+b.kids;
+  const payTxt={card:"Card (BML Connect)",bank:"Bank transfer",paypal:"PayPal",arrival:"Pay on arrival"}[b.pay]||b.pay;
+  const stay=b.mode==="pkg"?`${b.roomName} · ${b.qty} rooms${b.singles?" ("+b.singles+" single)":""}`:`${b.qty>1?b.qty+" x ":""}${b.roomName}`;
+  return {to_email:to,reply_to:to===b.email?(S.mail.hostEmail||S.email):b.email,
+    guesthouse:S.name,code:b.code,guest_name:b.name,guest_email:b.email,guest_phone:b.phone,guest_country:b.country||"-",
+    stay,checkin:fmtDY(b.ci),checkout:fmtDY(b.co),nights:b.nights,guests:ppl+(b.infants?` + ${b.infants} infant`:""),
+    meal:b.meal?`${b.meal.name} (${b.meal.code})`:"-",
+    extras:(b.exps||[]).map(x=>x.name).join(", ")||"None",
+    transfer:b.transfer==="none"?"Own arrangement":b.transfer==="both"?"Speedboat both ways":"Speedboat on arrival",
+    flight:[b.flight,b.eta].filter(Boolean).join(" at ")||"-",
+    total:money(b.price.total),due_now:money(b.price.due),payment:payTxt,note:b.note||"-",
+    whatsapp:"+"+S.whatsapp,site:location.origin};
+}
+async function sendBookingEmails(b){
+  const m=S.mail||{};if(!m.on||!m.publicKey||!m.serviceId)return;
+  try{await loadEmailJS();
+    const jobs=[];
+    if(m.hostTemplate&&(m.hostEmail||S.email))jobs.push(emailjs.send(m.serviceId,m.hostTemplate,mailParams(b,m.hostEmail||S.email)));
+    if(m.guestTemplate&&b.email)jobs.push(emailjs.send(m.serviceId,m.guestTemplate,mailParams(b,b.email)));
+    await Promise.allSettled(jobs);
+  }catch(e){console.warn("Email not sent:",e)}
+}
+async function testEmail(){
+  const m=S.mail;if(!m.publicKey||!m.serviceId||!m.hostTemplate){toast("Fill in public key, service ID and host template first");return}
+  const fake={code:"ARIA-TEST01",name:"Test Guest",email:m.hostEmail||S.email,phone:"+960 0000000",country:"Maldives",ci:todayStr(7),co:todayStr(10),nights:3,adults:2,kids:0,infants:0,qty:1,roomName:S.rooms[0].name,mode:"room",meal:{name:"Bed & Breakfast",code:"BB"},exps:[],transfer:"arrival",flight:"EK652",eta:"10:30",price:{total:300,due:300},pay:"arrival",note:"This is a test email from the host desk."};
+  try{toast("Sending test…");await loadEmailJS();await emailjs.send(m.serviceId,m.hostTemplate,mailParams(fake,m.hostEmail||S.email));toast("Test email sent ✓ Check your inbox")}
+  catch(e){toast("Failed: "+((e&&(e.text||e.message))||"check the IDs"))}
 }
 function showDone(b){
   cur=SS().length;$("#progBar").style.width="100%";
@@ -1355,6 +1389,15 @@ async function renderAdmin(){
       <div class="fld"><label>Or try a sample photo</label><div style="display:flex;flex-wrap:wrap;gap:6px">${HERO_SAMPLES.map(([n,u])=>`<button class="btn ghost small" onclick="S.hero='${u}';saveS('Home image changed')">${n}</button>`).join("")}</div></div>
       ${S.hero?`<button class="btn small" onclick="S.hero='';saveS('Back to the drawing')">Use the drawing again</button>`:""}
       <p style="font-size:12px;color:var(--muted);margin-top:8px">A wide (landscape) photo works best. The text sits at the top, so choose a photo with sky or calm space there.</p></div>
+     <div class="card"><h4>📧 Booking emails (EmailJS)</h4>
+      <label style="display:flex;gap:10px;align-items:center;padding:6px 0;font-weight:600"><input type="checkbox" ${S.mail.on?"checked":""} onchange="S.mail.on=this.checked" style="width:20px;height:20px">Send an email for every new booking</label>
+      <div class="fld"><label>Send booking alerts to (your email)</label><input type="email" value="${esc(S.mail.hostEmail)}" placeholder="${esc(S.email)}" onchange="S.mail.hostEmail=this.value.trim()"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+       <div class="fld"><label>Public key</label><input value="${esc(S.mail.publicKey)}" onchange="S.mail.publicKey=this.value.trim();ejsReady=null"></div>
+       <div class="fld"><label>Service ID</label><input value="${esc(S.mail.serviceId)}" placeholder="service_xxxx" onchange="S.mail.serviceId=this.value.trim()"></div>
+       <div class="fld"><label>Host template ID</label><input value="${esc(S.mail.hostTemplate)}" placeholder="template_xxxx" onchange="S.mail.hostTemplate=this.value.trim()"></div>
+       <div class="fld"><label>Guest template ID</label><input value="${esc(S.mail.guestTemplate)}" placeholder="template_yyyy" onchange="S.mail.guestTemplate=this.value.trim()"></div></div>
+      <div style="display:flex;gap:8px"><button class="btn small" onclick="saveS('Email settings saved')">Save</button><button class="btn ghost small" onclick="testEmail()">Send test email</button></div></div>
      <div class="card"><h4>Guest house</h4>${f("name","Name")}${f("tagline","Tagline")}${f("whatsapp","WhatsApp (with country code, e.g. 9607xxxxxx)")}${f("email","Email","email")}</div>
      <div class="card"><h4>🏄 Surf package</h4>
       <label style="display:flex;gap:10px;align-items:center;padding:6px 0;font-weight:600"><input type="checkbox" ${S.pkg.on!==false?"checked":""} onchange="S.pkg.on=this.checked" style="width:20px;height:20px">Show the surf package</label>
